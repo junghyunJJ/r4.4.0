@@ -34,7 +34,7 @@ RUN pip3 install --upgrade pip && \
     pip3 install leidenalg numpy
 
 # Set up R environment and BiocManager
-# Use Rscript instead of R -e to avoid QEMU issues
+# Simple sequential installation
 RUN Rscript -e "install.packages('BiocManager', repos='https://cloud.r-project.org/')"
 RUN Rscript -e "library(BiocManager); BiocManager::install(version='3.19', ask=FALSE, update=FALSE)"
 RUN Rscript -e "install.packages(c('remotes', 'reticulate'), repos='https://cloud.r-project.org/')"
