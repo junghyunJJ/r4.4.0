@@ -34,10 +34,10 @@ RUN pip3 install --upgrade pip && \
     pip3 install leidenalg numpy
 
 # Set up R environment and BiocManager
-RUN R -e "options(repos = c(CRAN = 'https://cloud.r-project.org/')); \
-          install.packages(c('remotes', 'BiocManager', 'reticulate')); \
-          library(BiocManager); \
-          BiocManager::install(version='3.19', ask=FALSE, update=FALSE)"
+# Use Rscript instead of R -e to avoid QEMU issues
+RUN Rscript -e "install.packages('BiocManager', repos='https://cloud.r-project.org/')"
+RUN Rscript -e "library(BiocManager); BiocManager::install(version='3.19', ask=FALSE, update=FALSE)"
+RUN Rscript -e "install.packages(c('remotes', 'reticulate'), repos='https://cloud.r-project.org/')"
 
 # Install core dependencies
 RUN R -e "install.packages(c('Rcpp', 'RcppArmadillo', 'Matrix', 'igraph'), type='source')"
