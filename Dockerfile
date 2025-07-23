@@ -33,12 +33,11 @@ RUN apt-get update && apt-get install -y \
 RUN pip3 install --upgrade pip && \
     pip3 install leidenalg numpy
 
-# Set up R environment
+# Set up R environment and BiocManager
 RUN R -e "options(repos = c(CRAN = 'https://cloud.r-project.org/')); \
-          install.packages(c('remotes', 'BiocManager', 'reticulate'))"
-
-# Set Bioconductor version
-RUN R -e "library(BiocManager); BiocManager::install(version='3.19', ask=FALSE, update=FALSE)"
+          install.packages(c('remotes', 'BiocManager', 'reticulate')); \
+          library(BiocManager); \
+          BiocManager::install(version='3.19', ask=FALSE, update=FALSE)"
 
 # Install core dependencies
 RUN R -e "install.packages(c('Rcpp', 'RcppArmadillo', 'Matrix', 'igraph'), type='source')"
