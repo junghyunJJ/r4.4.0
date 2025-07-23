@@ -1,0 +1,96 @@
+FROM rocker/r-ver:4.4.0
+
+# Install all system dependencies in one layer
+RUN apt-get update && apt-get install -y \
+    # HDF5 and compilation tools
+    libhdf5-dev \
+    patch \
+    build-essential \
+    # R package dependencies
+    libcurl4-openssl-dev \
+    libssl-dev \
+    libxml2-dev \
+    libgit2-dev \
+    libgdal-dev \
+    libgeos-dev \
+    libproj-dev \
+    libudunits2-dev \
+    libmagick++-dev \
+    libharfbuzz-dev \
+    libfribidi-dev \
+    libglpk-dev \
+    libgmp3-dev \
+    # Additional tools
+    cmake \
+    git \
+    # Python for leidenAlg
+    python3 \
+    python3-pip \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+RUN pip3 install --upgrade pip && \
+    pip3 install leidenalg numpy
+
+# Set up R environment and BiocManager - AMD64 optimized
+# Simple sequential installation
+RUN Rscript -e "install.packages('BiocManager', repos='https://cloud.r-project.org/')"
+RUN Rscript -e "library(BiocManager); BiocManager::install(version='3.19', ask=FALSE, update=FALSE)"
+RUN Rscript -e "install.packages(c('remotes', 'reticulate'), repos='https://cloud.r-project.org/')"
+
+# Install core dependencies
+RUN R -e "install.packages(c('Rcpp', 'RcppArmadillo', 'Matrix', 'igraph'), type='source')"
+
+# Install Seurat and visualization packages
+RUN R -e "install.packages(c('Seurat', 'dplyr', 'ggplot2', 'Cairo', 'patchwork', 'cowplot'))"
+
+# Install Bioconductor packages
+RUN R -e "BiocManager::install(c( \
+    'multtest', 'SingleCellExperiment', 'batchelor', \
+    'scran', 'scater', 'ComplexHeatmap', 'SpatialExperiment', \
+    'escheR', 'SpotSweeper' \
+    ), ask=FALSE, update=FALSE)"
+
+# Install HDF5 and related packages with special handling
+RUN R -e "BiocManager::install(c('rhdf5', 'rhdf5filters'), ask=FALSE, update=FALSE)" && \
+    R -e "install.packages('hdf5r', type='source')"
+
+# Install additional analysis packages
+RUN R -e "install.packages(c('liger', 'harmony', 'rliger'))"
+
+# Install spatial analysis packages
+RUN R -e "BiocManager::install(c( \
+    'IRIS', 'spatialLIBD', 'SpatialFeatureExperiment', \
+    'ggspavis', 'TENxVisiumData' \
+    ), ask=FALSE, update=FALSE)"
+
+# Install deconvolution packages
+RUN R -e "install.packages('spacexr', repos='https://github.com/dmcable/spacexr', type='source')" || \
+    R -e "remotes::install_github('dmcable/spacexr', upgrade='never')"
+
+RUN R -e "install.packages('CARDspa', repos='https://yingma0107.github.io/CARDspa/', type='source')" || \
+    R -e "remotes::install_github('YingMa0107/CARDspa', upgrade='never')"
+
+# Install CellChat
+RUN R -e "remotes::install_github('jinworks/CellChat', upgrade='never')"
+
+# Create necessary directories
+RUN mkdir -p /data/input /data/output /app
+
+# Copy application files
+COPY entrypoint.sh /app/
+COPY run_cellchat.R /app/
+COPY test_dependencies.R /app/
+
+# Make entrypoint executable
+RUN chmod +x /app/entrypoint.sh
+
+# Set working directory
+WORKDIR /data
+
+# Set entrypoint
+ENTRYPOINT ["/app/entrypoint.sh"]
+
+# Default command
+CMD ["R"]

@@ -1,0 +1,93 @@
+name: Build Docker Image (Multi-platform)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-amd64:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Docker Hub
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    
+    - name: Build and push AMD64 image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: |
+          ${{ secrets.DOCKER_USERNAME }}/r4.4.0:0.1-amd64
+          ${{ secrets.DOCKER_USERNAME }}/r4.4.0:latest-amd64
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  build-arm64:
+    runs-on: ubuntu-latest
+    if: false  # Temporarily disabled due to QEMU issues
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: linux/arm64
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Docker Hub
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    
+    - name: Build and push ARM64 image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/arm64
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: |
+          ${{ secrets.DOCKER_USERNAME }}/r4.4.0:0.1-arm64
+          ${{ secrets.DOCKER_USERNAME }}/r4.4.0:latest-arm64
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  create-manifest:
+    needs: [build-amd64]  # Remove build-arm64 when it's disabled
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    
+    steps:
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    
+    - name: Create and push manifest
+      run: |
+        # For now, just tag amd64 as the main version
+        docker buildx imagetools create \
+          -t ${{ secrets.DOCKER_USERNAME }}/r4.4.0:0.1 \
+          -t ${{ secrets.DOCKER_USERNAME }}/r4.4.0:latest \
+          ${{ secrets.DOCKER_USERNAME }}/r4.4.0:0.1-amd64
