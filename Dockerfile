@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y \
     libfribidi-dev \
     libglpk-dev \
     libgmp3-dev \
+    libgsl-dev \
     # Additional tools
     cmake \
     git \
@@ -33,18 +34,21 @@ RUN apt-get update && apt-get install -y \
 RUN pip3 install --upgrade pip && \
     pip3 install leidenalg numpy
 
-# Copy installation script
-COPY install_biocmanager.R /tmp/
+# Set up R environment
+RUN R -e "options(repos = c(CRAN = 'https://cloud.r-project.org/')); \
+          install.packages(c('remotes', 'BiocManager', 'reticulate'))"
 
-# Set up R environment and BiocManager using script
-# This approach is more QEMU-friendly
-RUN Rscript /tmp/install_biocmanager.R && rm /tmp/install_biocmanager.R
+# Set Bioconductor version
+RUN R -e "BiocManager::install(version='3.19', ask=FALSE, update=FALSE)"
 
 # Install core dependencies
 RUN R -e "install.packages(c('Rcpp', 'RcppArmadillo', 'Matrix', 'igraph'), type='source')"
 
 # Install Seurat and visualization packages
 RUN R -e "install.packages(c('Seurat', 'dplyr', 'ggplot2', 'Cairo', 'patchwork', 'cowplot'))"
+
+# anndata r package
+RUN R -e "install.packages('anndata')"
 
 # Install Bioconductor packages
 RUN R -e "BiocManager::install(c( \
@@ -53,6 +57,7 @@ RUN R -e "BiocManager::install(c( \
     'escheR', 'SpotSweeper' \
     ), ask=FALSE, update=FALSE)"
 
+
 # Install HDF5 packages step by step
 RUN R -e "BiocManager::install('rhdf5', ask=FALSE, update=FALSE)"
 RUN R -e "BiocManager::install('HDF5Array', ask=FALSE, update=FALSE)"
@@ -60,30 +65,39 @@ RUN R -e "BiocManager::install('HDF5Array', ask=FALSE, update=FALSE)"
 # Install hdf5r with specific configuration
 RUN R -e "install.packages('hdf5r', type='source')"
 
-# Install GitHub packages
+# Install CellChat
 RUN R -e "remotes::install_github('immunogenomics/presto')"
 RUN R -e "remotes::install_github('jinworks/CellChat')"
 
-# Install additional Bioconductor packages
-RUN R -e "BiocManager::install(c('CARDspa', 'spacexr'), ask=FALSE, update=FALSE)"
+# Install CARD
+RUN R -e "BiocManager::install('TOAST')"
+RUN R -e "remotes::install_github('xuranw/MuSiC')"
+RUN R -e "remotes::install_github('YingMa0107/CARD')"
 
-# Install IRIS dependencies in order
-RUN R -e "install.packages(c('MCMCpack', 'fields', 'wrMisc', 'RANN', 'reshape2'))"
+# Install spacexr (RCTD)
+RUN R -e "install.packages('RcppGSL')"
+RUN R -e "install.packages('RcppZiggurat')"
+RUN R -e "install.packages('Rfast')"
+RUN R -e "remotes::install_github('dmcable/spacexr', build_vignettes = FALSE)"
 
-# Install leidenAlg
-RUN R -e "install.packages('leidenAlg')"
 
-# Try to install optional dependencies
-RUN R -e "tryCatch(install.packages('hdf5r.Extra'), error=function(e) message('hdf5r.Extra not available'))"
+# # Install IRIS dependencies in order
+# RUN R -e "install.packages(c('MCMCpack', 'fields', 'wrMisc', 'RANN', 'reshape2'))"
 
-# Install RcppPlanc from r-universe
-RUN R -e "install.packages('RcppPlanc', repos = c('https://kharchenkolab.r-universe.dev', 'https://cloud.r-project.org'))"
+# # Install leidenAlg
+# RUN R -e "install.packages('leidenAlg')"
 
-# Install rliger
-RUN R -e "remotes::install_github('welch-lab/liger', ref='master')"
+# # Try to install optional dependencies
+# RUN R -e "tryCatch(install.packages('hdf5r.Extra'), error=function(e) message('hdf5r.Extra not available'))"
 
-# Finally install IRIS
-RUN R -e "remotes::install_github('YingMa0107/IRIS')"
+# # Install RcppPlanc from r-universe
+# RUN R -e "install.packages('RcppPlanc', repos = c('https://kharchenkolab.r-universe.dev', 'https://cloud.r-project.org'))"
+
+# # Install rliger
+# RUN R -e "remotes::install_github('welch-lab/liger', ref='master')"
+
+# # Finally install IRIS
+# RUN R -e "remotes::install_github('YingMa0107/IRIS')"
 
 # Create directories
 RUN mkdir -p /data/input /data/output

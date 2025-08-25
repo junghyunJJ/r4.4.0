@@ -1,6 +1,0 @@
-                                                                                                       │
-/sc:troubleshoot --sequential                                                                          │
-docker build -t r-debug:latest .                                                                       │
-이거 돌리며 에러난 
-
-docker build -t r4.4.0:latest .
